@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Round-trip, rejection and size tests for CL."""
+from pathlib import Path
+
 import cl
 
 # (natural-language English, CL message)
@@ -98,6 +100,26 @@ def regressions():
     return ok
 
 
+def scenarios():
+    """Every experiment scenario written in CL must parse with no error and no warning."""
+    ok = True
+    files = sorted((Path(__file__).parent / "experiment" / "scenarios").glob("*.cl"))
+    if not files:
+        print("FAIL no experiment scenarios found")
+        return False
+    for p in files:
+        try:
+            stmts, warns = cl.parse(p.read_text())
+            good = bool(stmts) and not warns and cl.parse(cl.dumps(stmts))[0] == stmts
+        except cl.CLError as e:
+            print(f"FAIL {p.name}: {e}")
+            good = False
+        if good:
+            print(f"ok   {p.name} parses and round-trips")
+        ok &= good
+    return ok
+
+
 def main():
     ok = True
     tot_nl = tot_cl = 0
@@ -130,6 +152,9 @@ def main():
 
     print("\nregressions (R1-R3):")
     ok &= regressions()
+
+    print("\nexperiment scenarios:")
+    ok &= scenarios()
     print("\nALL PASS" if ok else "\nFAILURES")
     return 0 if ok else 1
 
