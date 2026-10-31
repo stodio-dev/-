@@ -103,19 +103,20 @@ def regressions():
 def scenarios():
     """Every experiment scenario written in CL must parse with no error and no warning."""
     ok = True
-    files = sorted((Path(__file__).parent / "experiment" / "scenarios").glob("*.cl"))
-    if not files:
-        print("FAIL no experiment scenarios found")
+    root = Path(__file__).parent
+    files = sorted((root / "experiment").rglob("scenarios/*.cl"))
+    if len(files) < 12:                     # 8 in v1 + 4 in v2
+        print(f"FAIL expected at least 12 experiment scenarios, found {len(files)}")
         return False
     for p in files:
         try:
             stmts, warns = cl.parse(p.read_text())
             good = bool(stmts) and not warns and cl.parse(cl.dumps(stmts))[0] == stmts
         except cl.CLError as e:
-            print(f"FAIL {p.name}: {e}")
+            print(f"FAIL {p.relative_to(root)}: {e}")
             good = False
         if good:
-            print(f"ok   {p.name} parses and round-trips")
+            print(f"ok   {p.relative_to(root)} parses and round-trips")
         ok &= good
     return ok
 

@@ -3,9 +3,11 @@
 
 usage: python3 experiment/score.py KEY.json [RESULTS_DIR] [--out REPORT.md]
 
-Result file (experiment/results/<model>__<track>__run<N>.md) contains header lines
-`model:`, `track:`, `run:` and one answer per line, e.g. `s01.q1: B`.
+RESULTS_DIR is experiment/results (v1) or experiment/v2/results (v2).
+Result file (<model>__<track>__run<N>.md) has header lines `model:`, `track:`, `run:` and one
+answer per line, e.g. `s01.q1: B`. Tracks: nl, cl, relay-nl, relay-cl.
 Missing, malformed or contradicting answers count as wrong.
+For v2, hop messages in ../relay/ are checked against ../relay-budget.txt.
 """
 import json
 import re
@@ -17,8 +19,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import cl  # noqa: E402
 
-ANSWER = re.compile(r"^\s*[-*]?\s*\**(s\d\d\.q\d)\**\s*[:=]\s*\**\s*([A-Ea-e])\b")
-META = re.compile(r"^\s*(model|track|run)\s*:\s*(.+?)\s*$", re.I)
+TRACKS = ("nl", "cl", "relay-nl", "relay-cl")
+ANSWER = re.compile(r"^\s*[-*]?\s*\**([a-z]\d\d\.q\d+)\**\s*[:=]\s*\**\s*([A-Ea-e])\b")
+META = re.compile(r"^\s*(model|track|run|condition|hop)\s*:\s*(.+?)\s*$", re.I)
 
 
 def read_result(path):
@@ -42,6 +45,30 @@ def read_result(path):
     return meta, ans, conflicts
 
 
+def read_hop(path):
+    """Return (meta, body_chars). The body is everything after the first '---' line."""
+    lines = path.read_text(errors="replace").splitlines()
+    meta, body_start = {}, None
+    for i, line in enumerate(lines):
+        if line.strip() == "---":
+            body_start = i + 1
+            break
+        m = META.match(line)
+        if m:
+            meta.setdefault(m.group(1).lower(), m.group(2).strip().lower())
+    if body_start is None:
+        body = "\n".join(line for line in lines if not META.match(line))
+    else:
+        body = "\n".join(lines[body_start:])
+    parts = path.stem.split("__")
+    if len(parts) == 4:
+        meta.setdefault("model", parts[0].lower())
+        meta.setdefault("condition", parts[1].lower())
+        meta.setdefault("run", re.sub(r"\D", "", parts[2]) or "?")
+        meta.setdefault("hop", re.sub(r"\D", "", parts[3]) or "?")
+    return meta, len(body.strip())
+
+
 def pct(x):
     return f"{100 * x:.1f}%"
 
@@ -57,13 +84,14 @@ def main(argv):
     key = json.loads(Path(args[0]).read_text())
     key.pop("_meta", None)
     rdir = Path(args[1]) if len(args) > 1 else HERE / "results"
+    base = rdir.resolve().parent                       # experiment/ or experiment/v2/
     files = sorted(p for p in rdir.glob("*.md") if p.name.lower() != "readme.md")
 
-    runs = []          # dicts: model, track, run, correct, total, by_cat, issues
+    runs = []
     for p in files:
         meta, ans, conflicts = read_result(p)
         issues = []
-        if not all(k in meta for k in ("model", "track")) or meta.get("track") not in ("nl", "cl"):
+        if "model" not in meta or meta.get("track") not in TRACKS:
             issues.append("missing/invalid model or track header")
         missing = [q for q in key if q not in ans]
         if missing:
@@ -98,39 +126,65 @@ def main(argv):
         for (model, track), rs in sorted(grp.items()):
             accs = [r["correct"] / r["total"] for r in rs]
             mean[(model, track)] = sum(accs) / len(accs)
-            L.append(f"| {model} | {track} | {len(rs)} | {pct(mean[(model, track)])} | {pct(min(accs))} | {pct(max(accs))} |")
+            L.append(f"| {model} | {track} | {len(rs)} | {pct(mean[(model, track)])} | "
+                     f"{pct(min(accs))} | {pct(max(accs))} |")
 
-        models = sorted({m for m, _ in grp})
-        both = [m for m in models if (m, "nl") in mean and (m, "cl") in mean]
-        if both:
-            L += ["", "## CL minus NL (percentage points, same model)", "",
-                  "| model | NL | CL | CL - NL |", "|---|---:|---:|---:|"]
-            for m in both:
-                L.append(f"| {m} | {pct(mean[(m, 'nl')])} | {pct(mean[(m, 'cl')])} | "
-                         f"{100 * (mean[(m, 'cl')] - mean[(m, 'nl')]):+.1f} |")
+        comparisons = (("CL - NL (direct)", "nl", "cl"), ("CL - NL (relay)", "relay-nl", "relay-cl"),
+                       ("NL: relay - direct", "nl", "relay-nl"), ("CL: relay - direct", "cl", "relay-cl"))
+        rows = []
+        for model in sorted({m for m, _ in grp}):
+            for name, a, b in comparisons:
+                if (model, a) in mean and (model, b) in mean:
+                    rows.append(f"| {model} | {name} | {pct(mean[(model, a)])} | {pct(mean[(model, b)])} | "
+                                f"{100 * (mean[(model, b)] - mean[(model, a)]):+.1f} |")
+        if rows:
+            L += ["", "## Comparisons (percentage points, same model)", "",
+                  "| model | comparison | first | second | second - first |", "|---|---|---:|---:|---:|"] + rows
 
+        tracks = [t for t in TRACKS if any(r["track"] == t for r in runs)]
         cats = sorted({c["category"] for c in key.values()})
         L += ["", "## Accuracy by category (all models and runs pooled)", "",
-              "| category | questions | NL | CL |", "|---|---:|---:|---:|"]
+              "| category | questions | " + " | ".join(tracks) + " |",
+              "|---|---:|" + "---:|" * len(tracks)]
         for c in cats:
             n = sum(1 for v in key.values() if v["category"] == c)
-            cell = {}
-            for t in ("nl", "cl"):
+            cells = []
+            for t in tracks:
                 rs = [r for r in runs if r["track"] == t]
                 tot = sum(r["by_cat"][c][1] for r in rs)
-                cell[t] = pct(sum(r["by_cat"][c][0] for r in rs) / tot) if tot else "-"
-            L.append(f"| {c} | {n} | {cell['nl']} | {cell['cl']} |")
+                cells.append(pct(sum(r["by_cat"][c][0] for r in rs) / tot) if tot else "-")
+            L.append(f"| {c} | {n} | " + " | ".join(cells) + " |")
 
-        bad = [r for r in runs if r["issues"]]
-        if bad:
-            L += ["", "## Files with problems", ""]
-            L += [f"- {r['file']}: {', '.join(r['issues'])}" for r in bad]
+    problems = [f"- {r['file']}: {', '.join(r['issues'])}" for r in runs if r["issues"]]
+
+    relay_dir = base / "relay"
+    if relay_dir.exists():
+        hops = sorted(p for p in relay_dir.glob("*.md") if p.name.lower() != "readme.md")
+        budget = None
+        bf = base / "relay-budget.txt"
+        if bf.exists():
+            budget = int(bf.read_text().strip())
+        if hops:
+            L += ["", f"## Relay hop messages (budget: {budget if budget else 'unknown'} characters)", "",
+                  "| model | condition | run | hop | characters | within budget |", "|---|---|---|---|---:|---|"]
+            for p in hops:
+                meta, n = read_hop(p)
+                within = "-" if budget is None else ("yes" if n <= budget else "NO")
+                L.append(f"| {meta.get('model', '?')} | {meta.get('condition', '?')} | {meta.get('run', '?')} | "
+                         f"{meta.get('hop', '?')} | {n} | {within} |")
+                if budget is not None and n > budget:
+                    problems.append(f"- {p.name}: {n} characters, over the {budget} budget "
+                                    f"(treat this chain's result with care)")
+
+    if problems:
+        L += ["", "## Files with problems", ""] + problems
 
     sizes = {}
-    for name, files_ in (("NL track", ["track-nl.md"]), ("CL track", ["track-cl.md"]),
-                         ("CL track + SPEC.md + lexicon.json", ["track-cl.md", "../SPEC.md", "../lexicon.json"])):
+    for name, paths in (("NL track", [base / "track-nl.md"]), ("CL track", [base / "track-cl.md"]),
+                        ("CL track + SPEC.md + lexicon.json",
+                         [base / "track-cl.md", HERE.parent / "SPEC.md", HERE.parent / "lexicon.json"])):
         try:
-            text = "\n".join((HERE / f).read_text() for f in files_)
+            text = "\n".join(p.read_text() for p in paths)
             sizes[name] = cl.count_tokens(text)
         except OSError:
             pass
@@ -138,9 +192,8 @@ def main(argv):
         method = next(iter(sizes.values()))[1]
         L += ["", f"## Input size ({method})", "", "| input | tokens |", "|---|---:|"]
         L += [f"| {k} | {v[0]} |" for k, v in sizes.items()]
-        L.append("")
-        L.append("The CL track pays once for SPEC.md and lexicon.json; the NL track does not. "
-                 "Use the API's real token counts for a decision.")
+        L += ["", "The CL track pays once for SPEC.md and lexicon.json; the NL track does not. "
+              "Use the API's real token counts for a decision."]
 
     text = "\n".join(L) + "\n"
     if out:
