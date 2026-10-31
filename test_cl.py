@@ -42,6 +42,62 @@ INVALID = [
 ]
 
 
+def roundtrips(text):
+    """True iff parse(dumps(parse(text))) == parse(text); a CLError counts as failure."""
+    try:
+        stmts, _ = cl.parse(text)
+        return cl.parse(cl.dumps(stmts))[0] == stmts
+    except cl.CLError:
+        return False
+
+
+def rejects(text, code):
+    try:
+        cl.parse(text)
+        return False
+    except cl.CLError as e:
+        return e.code == code
+
+
+def regressions():
+    """Tests for fixed bugs R1-R3 (see CHAT_HISTORY.md). Each failed before its fix."""
+    ok = True
+
+    def check(name, cond):
+        nonlocal ok
+        print(f"{'ok  ' if cond else 'FAIL'} {name}")
+        ok &= bool(cond)
+
+    # R1: precision of conf/dur must survive dumps -> parse
+    check("R1 conf with 4 digits round-trips", roundtrips("est sys:a has fail src=m t=1 conf=.9555"))
+    check("R1 conf=1 and conf=0 round-trip",
+          roundtrips("est sys:a has fail src=m t=1 conf=1") and roundtrips("est sys:a has fail src=m t=1 conf=0"))
+    check("R1 dur with fraction round-trips", roundtrips("obs sys:a has fail src=m t=1 dur=0.0004"))
+    check("R1 non-finite conf rejected", rejects("est sys:a has fail src=m t=1 conf=nan", "E_VALUE"))
+    check("R1 non-finite dur rejected",
+          rejects("obs sys:a has fail src=m t=1 dur=inf", "E_VALUE")
+          and rejects("obs sys:a has fail src=m t=1 dur=nan", "E_VALUE"))
+
+    # R2: terms that need quoting must survive dumps -> parse
+    check("R2 instance with space round-trips", roundtrips('obs "sys:my srv" has fail src=m t=1'))
+    check("R2 instance with quote round-trips", roundtrips("""obs "sys:it's" has fail src=m t=1"""))
+    check("R2 negated quantified instance with space round-trips",
+          roundtrips('obs !all."data:big file" has fail src=m t=1'))
+    check("R2 plain terms stay unquoted (no token bloat)",
+          "'" not in cl.dumps(cl.parse("obs !sys:srv1 has fail src=m t=1")[0]))
+
+    # R3: lexicon default for scope is applied, omitted on output, overridable
+    s, _ = cl.parse("obs sys:a has fail src=m t=1")
+    check("R3 scope defaults to all", s[0]["f"].get("scope") == "all")
+    check("R3 default scope is omitted by dumps", "scope" not in cl.dumps(s))
+    text = "#scope=some src=m t=1\nobs sys:a has fail\nobs sys:b has fail scope=all"
+    s, _ = cl.parse(text)
+    check("R3 header scope overridden by explicit scope=all",
+          s[0]["f"]["scope"] == "some" and s[1]["f"]["scope"] == "all" and roundtrips(text))
+    check("R3 default scope not shown in gloss", "scope" not in cl.gloss(cl.parse("obs sys:a has fail src=m t=1")[0]))
+    return ok
+
+
 def main():
     ok = True
     tot_nl = tot_cl = 0
@@ -71,6 +127,9 @@ def main():
     _, warns = cl.parse("obs sys:srv1 cause res:mem src=m t=1")
     print("\nwarning test:", "ok" if warns else "FAIL")
     ok &= bool(warns)
+
+    print("\nregressions (R1-R3):")
+    ok &= regressions()
     print("\nALL PASS" if ok else "\nFAILURES")
     return 0 if ok else 1
 

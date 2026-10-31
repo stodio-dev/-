@@ -14,6 +14,7 @@ Goals: fewer tokens, no drift, no concept confusion, no translation through natu
 5. **Cheap tokens.** Codes are short ASCII words that common tokenizers usually keep whole.
    Emoji/symbols are a display layer only.
 6. **Defaults are omitted; exceptions are explicit.** Fields shared by all statements move to a `#` header.
+   Field defaults (currently only `scope=all`) come from the lexicon: the parser applies them, `dumps` never writes them.
 
 ## Grammar
 ```
@@ -26,13 +27,15 @@ field     := key '=' value                  # conf src t scope dur unit q
 - `@N` labels a statement; later statements may use `@N` as a term (causal chains, conditions).
 - `!` negates a term; `QUANT.` is one of `all some one none many`.
 - `concept:instance` names a specific thing: `sys:srv1`, `res:mem`, `val:92`.
+  An instance containing whitespace or quotes is shell-quoted (`"sys:my srv"`); `dumps` quotes only when needed.
+- Numbers (`conf`, `dur`) are written with exact round-trip precision and must be finite.
 
 ## Validation rules (E_* codes)
 | Code | Meaning |
 |---|---|
 | E_SYNTAX | wrong shape, or subject/object missing |
 | E_MODE / E_REL / E_CONCEPT / E_QUANT | unknown symbol |
-| E_FIELD / E_VALUE | unknown/duplicate field, bad value (e.g. conf outside 0..1) |
+| E_FIELD / E_VALUE | unknown/duplicate field, bad value (e.g. conf outside 0..1, non-finite number) |
 | E_MISSING | mode requires a field that is absent |
 | E_REF | `@N` reference to unknown or later statement |
 | WARN | e.g. `obs` used with `cause/enable/block/need` (causation is rarely observed; use `inf`) |

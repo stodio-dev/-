@@ -13,6 +13,7 @@ One statement per line:
     q="..."             verbatim text, never paraphrased
 """
 import json
+import math
 import re
 import shlex
 import sys
@@ -30,6 +31,9 @@ for _k in LEX["relations"]:
 
 # Relations that a pure observation almost never justifies.
 INFERRED_RELS = {"cause", "enable", "block", "need"}
+
+# Field defaults come from the lexicon: applied by parse(), never serialised by dumps().
+DEFAULTS = {k: v["default"] for k, v in LEX["fields"].items() if v.get("default") is not None}
 MODE_LABEL = {"obs": "OBSERVED", "inf": "INFERRED", "est": "ESTIMATED",
               "unk": "UNKNOWN", "req": "REQUEST", "cmd": "COMMAND", "ack": "ACK"}
 
@@ -78,6 +82,8 @@ def parse_fields(toks, ln):
                 v = float(v)
             except ValueError:
                 raise CLError("E_VALUE", f"{k} must be a number", ln)
+            if not math.isfinite(v):
+                raise CLError("E_VALUE", f"{k} must be finite", ln)
             if k == "conf" and not 0 <= v <= 1:
                 raise CLError("E_VALUE", "conf must be within 0..1", ln)
         elif k == "t":
@@ -121,7 +127,7 @@ def parse(text):
         if rel not in LEX["relations"]:
             raise CLError("E_REL", f"unknown relation '{rel}'", ln)
         subj, obj = parse_term(s, ids, ln), parse_term(o, ids, ln)
-        fields = {**defaults, **parse_fields(rest, ln)}
+        fields = {**DEFAULTS, **defaults, **parse_fields(rest, ln)}
         missing = [f for f in LEX["modes"][mode]["needs"] if f not in fields]
         if missing:
             raise CLError("E_MISSING", f"mode '{mode}' requires {missing}", ln)
@@ -137,33 +143,52 @@ def parse(text):
 
 # ---------- serialisation / compression ----------
 
+_PLAIN = re.compile(r"[^\s'\"\\]*")
+
+
+def quote_tok(tok):
+    """Quote only when shlex would otherwise split or alter the token (keeps '!' and '.' bare)."""
+    return tok if _PLAIN.fullmatch(tok) else shlex.quote(tok)
+
+
 def term_str(t):
     if t["ref"]:
         return ("!" if t["neg"] else "") + t["ref"]
-    return ("!" if t["neg"] else "") + (t["quant"] + "." if t["quant"] else "") \
-        + t["concept"] + (":" + t["inst"] if t["inst"] is not None else "")
+    return quote_tok(("!" if t["neg"] else "") + (t["quant"] + "." if t["quant"] else "")
+                     + t["concept"] + (":" + t["inst"] if t["inst"] is not None else ""))
 
 
 def fmt_val(v):
     if isinstance(v, float):
-        s = f"{v:.3f}".rstrip("0").rstrip(".")
-        return s[1:] if s.startswith("0.") else s      # .95 instead of 0.95
+        s = repr(v)                                    # shortest string that round-trips exactly
+        if s.endswith(".0"):
+            s = s[:-2]
+        if s.startswith("0."):
+            s = s[1:]                                  # .95 instead of 0.95
+        elif s.startswith("-0."):
+            s = "-" + s[2:]
+        return s
     return shlex.quote(str(v))
+
+
+def explicit_fields(f):
+    """Fields that differ from the lexicon default; defaults are never serialised."""
+    return {k: v for k, v in f.items() if DEFAULTS.get(k) != v}
 
 
 def dumps(stmts, factor=True):
     """Serialise; fields identical in every statement move to a '#' header."""
+    fl = [explicit_fields(s["f"]) for s in stmts]
     common = {}
     if factor and len(stmts) > 1:
-        keys = set.intersection(*(set(s["f"]) for s in stmts))
-        common = {k: stmts[0]["f"][k] for k in keys
-                  if all(s["f"][k] == stmts[0]["f"][k] for s in stmts)}
+        keys = set.intersection(*(set(f) for f in fl))
+        common = {k: fl[0][k] for k in keys if all(f[k] == fl[0][k] for f in fl)}
     lines = []
     if common:
         lines.append("#" + " ".join(f"{k}={fmt_val(v)}" for k, v in sorted(common.items())))
-    for s in stmts:
+    for s, f in zip(stmts, fl):
         parts = ([s["id"]] if s["id"] else []) + [s["mode"], term_str(s["s"]), s["rel"], term_str(s["o"])]
-        parts += [f"{k}={fmt_val(v)}" for k, v in s["f"].items() if k not in common]
+        parts += [f"{k}={fmt_val(v)}" for k, v in f.items() if k not in common]
         lines.append(" ".join(parts))
     return "\n".join(lines)
 
@@ -187,7 +212,7 @@ def term_gloss(t, verbose=False):
 def gloss(stmts, verbose=False):
     out = []
     for s in stmts:
-        extras = ", ".join(f"{k}={v}" for k, v in s["f"].items())
+        extras = ", ".join(f"{k}={v}" for k, v in explicit_fields(s["f"]).items())
         out.append(f"{(s['id'] + ' ') if s['id'] else ''}{MODE_LABEL[s['mode']]}: "
                    f"{term_gloss(s['s'], verbose)} --{s['rel'].upper()}--> "
                    f"{term_gloss(s['o'], verbose)}" + (f"  [{extras}]" if extras else ""))
