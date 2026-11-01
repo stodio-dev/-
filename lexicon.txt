@@ -1,0 +1,88 @@
+CL 0.2 (compact; full spec: SPEC.md). One statement per line: [@N] MODE SUBJECT [!]REL OBJECT key=value...
+TERM: [!][quant.]concept[:instance] | [!]@N (earlier statement; ids unique per message). !REL negates the relation.
+#key=value line: default for all following lines until changed; a statement's own field overrides it.
+t: unix seconds or +N meaning t0+N (#t0=N, header only). ctx: context id. q="...": verbatim text only.
+A statement missing a field its mode requires is invalid. Below: code: definition | not: confusable
+MODES (required fields in braces)
+obs {src t}: directly observed/measured by the sender
+inf {conf src t}: derived by reasoning from other statements
+est {conf src t}: approximation of a present or past value; not a forecast (use pred)
+pred {conf src t dur}: forecast: the claim is expected to hold at some point within [t, t+dur]
+unk {src t}: explicitly unknown; asks nothing, asserts nothing
+req {src t}: request for information (answer expected)
+cmd {src t}: instruction to perform an action
+ack {src t}: receipt of statement @N confirmed; no agreement or completion implied; form: ack @N has recv
+RELATIONS (A rel B; !rel negates)
+cause: A produced B (temporal + causal) | not: corr (co-occurrence only); need (dependency)
+corr: A and B co-occur; no causal claim | not: cause
+enable: A makes B possible but does not produce it | not: cause
+block: A prevents B | not: cause (with ! it only says A did not produce B)
+need: A cannot function without B | not: cause
+part: A is a component of B | not: is (type membership)
+is: A is an instance/kind of B | not: part, eq
+eq: A and B are the same entity/value | not: sim (similar only)
+sim: A resembles B in stated respect | not: eq
+gt: A strictly greater than B | not: lt (reverse)
+lt: A strictly less than B | not: gt (reverse)
+bef: A happened strictly before B | not: cause
+has: A holds/possesses property or value B | not: part
+do: A performs action B | not: cause
+to: A transfers/moves to B | not: do
+ENTITIES
+agent: actor able to decide or act (person, program, org) | not: sys
+sys: bounded technical system or machine | not: agent
+data: information content, regardless of container | not: store
+store: container that holds data (file, db, memory) | not: data
+proc: ongoing or repeatable activity with steps | not: event
+event: single occurrence at a point or short span in time | not: proc
+res: consumable/limited capacity (cpu, memory, budget, time) | not: store
+link: channel through which things move between parties | not: proc
+rule: normative constraint or policy | not: fact
+fact: descriptive claim about the world | not: rule
+id: unique name or reference of something | not: data
+val: a concrete number/value | not: id
+time: instant or interval on a clock | not: res
+place: location, physical or logical | not: id
+STATES
+ok: operating as specified | not: idle
+fail: not operating as specified | not: stop (deliberate)
+stop: deliberately halted | not: fail
+idle: available, doing nothing | not: ok
+busy: fully engaged | not: fail
+full: capacity exhausted | not: busy
+empty: zero content | not: null (value absent)
+null: value absent/undefined | not: empty
+valid: conforms to a stated rule | not: true
+true: matches reality | not: valid
+safe: no unacceptable risk under stated threat model | not: valid
+new: created and not yet changed | not: chg
+chg: modified after creation | not: new
+ACTIONS
+make: bring into existence | not: chg
+kill: destroy irreversibly | not: halt (resumable)
+set: assign a value | not: make
+get: read without modifying | not: recv (accept something emitted)
+send: emit toward a recipient | not: to (relation: A moves to B)
+recv: accept something emitted | not: get
+run: start execution | not: make
+halt: stop execution (resumable) | not: kill
+wait: suspend until a condition | not: halt
+ask: solicit an answer | not: cmd
+chk: verify against a rule or value | not: get
+fix: restore to specified state | not: set
+QUANTIFIERS (prefix: all.sys)
+all: every member of the set | not: some
+some: at least one, unspecified | not: all
+one: exactly one | not: some
+none: zero members | not: null
+many: more than a few; vague (prefer a number) | not: all
+FIELDS
+conf: confidence 0..1 as decimal
+src: identifier of the claimant
+t: unix seconds of the claim, or +N meaning t0+N
+t0: header only: base time in unix seconds for relative t=+N; not part of any statement
+ctx: context the statement belongs to (incident, document, thread); letters, digits, . _ -
+scope: set the claim covers, a quantifier, e.g. scope=some (default all)
+dur: seconds; the claim refers to the interval [t, t+dur]: pred = at some point within it, other modes = throughout it
+unit: unit of measure for the value
+q: verbatim free text, never paraphrased

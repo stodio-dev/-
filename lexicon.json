@@ -1,26 +1,27 @@
 {
-  "version": "0.1",
+  "version": "0.2",
   "modes": {
     "obs":  {"def": "directly observed/measured by the sender", "needs": ["src", "t"]},
     "inf":  {"def": "derived by reasoning from other statements", "needs": ["conf", "src", "t"]},
-    "est":  {"def": "approximation or forecast", "needs": ["conf", "src", "t"]},
+    "est":  {"def": "approximation of a present or past value; not a forecast (use pred)", "needs": ["conf", "src", "t"]},
+    "pred": {"def": "forecast: the claim is expected to hold at some point within [t, t+dur]", "needs": ["conf", "src", "t", "dur"]},
     "unk":  {"def": "explicitly unknown; asks nothing, asserts nothing", "needs": ["src", "t"]},
     "req":  {"def": "request for information (answer expected)", "needs": ["src", "t"]},
     "cmd":  {"def": "instruction to perform an action", "needs": ["src", "t"]},
-    "ack":  {"def": "receipt confirmation only; no agreement implied", "needs": ["src", "t"]}
+    "ack":  {"def": "receipt of statement @N confirmed; no agreement or completion implied; form: ack @N has recv", "needs": ["src", "t"]}
   },
   "relations": {
-    "cause":   {"def": "A produced B (temporal + causal)", "not": "corr (mere co-occurrence); req_by (dependency)"},
+    "cause":   {"def": "A produced B (temporal + causal)", "not": "corr (co-occurrence only); need (dependency)"},
     "corr":    {"def": "A and B co-occur; no causal claim", "not": "cause"},
     "enable":  {"def": "A makes B possible but does not produce it", "not": "cause"},
-    "block":   {"def": "A prevents B", "not": "neg (B simply absent)"},
+    "block":   {"def": "A prevents B", "not": "cause (with ! it only says A did not produce B)"},
     "need":    {"def": "A cannot function without B", "not": "cause"},
     "part":    {"def": "A is a component of B", "not": "is (type membership)"},
     "is":      {"def": "A is an instance/kind of B", "not": "part, eq"},
     "eq":      {"def": "A and B are the same entity/value", "not": "sim (similar only)"},
     "sim":     {"def": "A resembles B in stated respect", "not": "eq"},
-    "gt":      {"def": "A strictly greater than B", "not": "ge"},
-    "lt":      {"def": "A strictly less than B", "not": "le"},
+    "gt":      {"def": "A strictly greater than B", "not": "lt (reverse)"},
+    "lt":      {"def": "A strictly less than B", "not": "gt (reverse)"},
     "bef":     {"def": "A happened strictly before B", "not": "cause"},
     "has":     {"def": "A holds/possesses property or value B", "not": "part"},
     "do":      {"def": "A performs action B", "not": "cause"},
@@ -59,10 +60,10 @@
   },
   "actions": {
     "make":  {"def": "bring into existence", "not": "chg"},
-    "kill":  {"def": "destroy irreversibly", "not": "stop"},
+    "kill":  {"def": "destroy irreversibly", "not": "halt (resumable)"},
     "set":   {"def": "assign a value", "not": "make"},
-    "get":   {"def": "read without modifying", "not": "take"},
-    "send":  {"def": "emit toward a recipient", "not": "put"},
+    "get":   {"def": "read without modifying", "not": "recv (accept something emitted)"},
+    "send":  {"def": "emit toward a recipient", "not": "to (relation: A moves to B)"},
     "recv":  {"def": "accept something emitted", "not": "get"},
     "run":   {"def": "start execution", "not": "make"},
     "halt":  {"def": "stop execution (resumable)", "not": "kill"},
@@ -78,21 +79,15 @@
     "none": {"def": "zero members", "not": "null"},
     "many": {"def": "more than a few; vague (prefer a number)", "not": "all"}
   },
-  "modifiers": {
-    "not":   {"def": "logical negation of the following concept", "not": "none"},
-    "more":  {"def": "greater than reference", "not": "gt"},
-    "less":  {"def": "smaller than reference", "not": "lt"},
-    "max":   {"def": "upper bound", "not": "gt"},
-    "min":   {"def": "lower bound", "not": "lt"},
-    "cond":  {"def": "holds only if the next statement holds", "not": "cause"}
-  },
   "fields": {
-    "conf": {"def": "confidence 0..1 as decimal", "default": null},
-    "src":  {"def": "identifier of the claimant", "default": null},
-    "t":    {"def": "unix seconds of claim", "default": null},
-    "scope": {"def": "set the claim covers, e.g. scope=all", "default": "all"},
-    "dur":  {"def": "duration in seconds", "default": null},
-    "unit": {"def": "unit of measure for the value", "default": null},
-    "q":    {"def": "verbatim free text, never paraphrased", "default": null}
+    "conf":  {"def": "confidence 0..1 as decimal", "default": null},
+    "src":   {"def": "identifier of the claimant", "default": null},
+    "t":     {"def": "unix seconds of the claim, or +N meaning t0+N", "default": null},
+    "t0":    {"def": "header only: base time in unix seconds for relative t=+N; not part of any statement", "default": null},
+    "ctx":   {"def": "context the statement belongs to (incident, document, thread); letters, digits, . _ -", "default": null},
+    "scope": {"def": "set the claim covers, a quantifier, e.g. scope=some", "default": "all"},
+    "dur":   {"def": "seconds; the claim refers to the interval [t, t+dur]: pred = at some point within it, other modes = throughout it", "default": null},
+    "unit":  {"def": "unit of measure for the value", "default": null},
+    "q":     {"def": "verbatim free text, never paraphrased", "default": null}
   }
 }

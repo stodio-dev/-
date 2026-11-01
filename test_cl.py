@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Round-trip, rejection and size tests for CL."""
+import re
 from pathlib import Path
 
 import cl
@@ -100,6 +101,109 @@ def regressions():
     return ok
 
 
+def v02():
+    """Tests for CL v0.2 (R7-R11, relative time, ctx, grouping, compact lexicon).
+    Written before the v0.2 implementation; they must fail on v0.1."""
+    ok = True
+
+    def check(name, fn):
+        nonlocal ok
+        try:
+            res = bool(fn())
+            err = ""
+        except Exception as e:                       # a crash counts as failure, with the reason
+            res, err = False, f"  ({type(e).__name__}: {e})"
+        print(f"{'ok  ' if res else 'FAIL'} {name}{err if not res else ''}")
+        ok &= res
+
+    lex = cl.LEX
+    codes = set(cl.CONCEPTS) | set(lex["relations"]) | set(lex["modes"])
+    items = [(c, k, v) for c in ["entities", "states", "actions", "quantifiers", "relations"]
+             for k, v in lex[c].items()]
+
+    def dangling():
+        bad = []
+        for c, k, v in items:
+            for part in re.split(r"[;,]", v.get("not", "")):
+                head = part.strip().split(" ")[0].split("(")[0]
+                if head and head not in codes:
+                    bad.append(f"{k}->{head}")
+        return bad
+
+    # R7: definitions and contrasts are complete and resolvable
+    check("R7 every concept and relation has def and not",
+          lambda: all(v.get("def") and v.get("not") for _, _, v in items))
+    check("R7 every 'not' contrast names an existing code", lambda: not dangling() or print("     dangling:", dangling()))
+
+    # R8: modifiers removed (no defined grammatical role)
+    check("R8 modifiers category removed", lambda: "modifiers" not in lex)
+    check("R8 'more' is no longer a concept", lambda: rejects("obs sys:a has more src=m t=1", "E_CONCEPT"))
+
+    # R9: negated relation
+    check("R9 '!cause' parses with rneg=True",
+          lambda: cl.parse("inf sys:a !cause sys:b conf=.9 src=m t=1")[0][0]["rneg"] is True)
+    check("R9 plain relation has rneg=False", lambda: cl.parse("obs sys:a has fail src=m t=1")[0][0]["rneg"] is False)
+    check("R9 negated relation round-trips", lambda: roundtrips("inf sys:a !cause sys:b conf=.9 src=m t=1"))
+    check("R9 gloss shows NOT CAUSE",
+          lambda: "NOT CAUSE" in cl.gloss(cl.parse("inf sys:a !cause sys:b conf=.9 src=m t=1")[0]))
+    check("R9 'obs ... !cause' still warns", lambda: bool(cl.parse("obs sys:a !cause sys:b src=m t=1")[1]))
+
+    # R10: forecasts get their own mode; dur has one definition
+    check("R10 pred mode parses", lambda: cl.parse("pred sys:db has full conf=.6 dur=3600 src=m t=1")[0])
+    check("R10 pred requires dur", lambda: rejects("pred sys:db has full conf=.6 src=m t=1", "E_MISSING"))
+    check("R10 pred requires conf", lambda: rejects("pred sys:db has full dur=60 src=m t=1", "E_MISSING"))
+    check("R10 pred has a gloss label", lambda: "pred" in cl.MODE_LABEL)
+    check("R10 dur definition names the interval [t, t+dur]", lambda: "t+dur" in lex["fields"]["dur"]["def"])
+
+    # R11: ack must point at the acknowledged statement
+    check("R11 ack with a non-reference subject is rejected", lambda: rejects("ack sys:a has recv src=m t=1", "E_SYNTAX"))
+    check("R11 canonical 'ack @N has recv' parses",
+          lambda: cl.parse("@1 cmd proc:x do halt src=o t=1\nack @1 has recv src=w t=2")[0])
+
+    # relative time
+    absol = "obs sys:a has fail src=m t=1730500197"
+    check("time: t=+N resolves against #t0", lambda: cl.parse("#t0=1730500000\nobs sys:a has fail src=m t=+197")[0]
+          == cl.parse(absol)[0])
+    check("time: t0 and relative t in one header, either order",
+          lambda: cl.parse("#t=+197 t0=1730500000 src=m\nobs sys:a has fail")[0] == cl.parse(absol)[0])
+    check("time: t=+N without t0 is rejected", lambda: rejects("obs sys:a has fail src=m t=+5", "E_MISSING"))
+    check("time: t0 inside a statement is rejected", lambda: rejects("obs sys:a has fail src=m t=1 t0=0", "E_FIELD"))
+    check("time: t0 is not stored in statement fields",
+          lambda: "t0" not in cl.parse("#t0=10\nobs sys:a has fail src=m t=+1")[0][0]["f"])
+    two = "obs sys:a has fail src=m t=1730500197\nobs sys:b has ok src=n t=1730500299"
+    check("time: dumps writes relative times when t differs",
+          lambda: "#t0=" in cl.dumps(cl.parse(two)[0]) and "t=+" in cl.dumps(cl.parse(two)[0]) and roundtrips(two))
+
+    # ctx: which incident/document a statement belongs to (models invented scope=d01 for this)
+    check("ctx: field parses", lambda: cl.parse("obs sys:a has fail src=m t=1 ctx=d01")[0][0]["f"]["ctx"] == "d01")
+    check("ctx: header applies to following lines",
+          lambda: cl.parse("#ctx=d02 src=m t=1\nobs sys:a has fail")[0][0]["f"]["ctx"] == "d02")
+    check("ctx: whitespace in ctx is rejected", lambda: rejects('obs sys:a has fail src=m t=1 "ctx=a b"', "E_VALUE"))
+
+    # grouping: runs of equal values become header changes; nothing leaks to statements without the field
+    runs = "\n".join([f"obs sys:a{i} has fail src=aa t={i}" for i in range(3)]
+                     + [f"obs sys:b{i} has ok src=bb t={10 + i}" for i in range(3)])
+    out = lambda: cl.dumps(cl.parse(runs)[0])
+    check("group: source runs become headers",
+          lambda: "#src=aa" in out() and "#src=bb" in out() and roundtrips(runs))
+    check("group: no inline src left on statement lines",
+          lambda: not any("src=" in l for l in out().splitlines() if not l.startswith("#")))
+    mixed = "inf sys:a cause sys:b conf=.9 src=m t=1\nobs sys:c has ok src=m t=2\ninf sys:d cause sys:e conf=.9 src=m t=3"
+    check("group: a field missing from some statements never leaks via a header", lambda: roundtrips(mixed))
+
+    # the example in SPEC.md must stay valid
+    def spec_example():
+        spec = (Path(__file__).parent / "SPEC.md").read_text()
+        block = spec.split("## Example", 1)[1].split("```", 2)[1]
+        return cl.parse(block)[0] and not cl.parse(block)[1]
+    check("SPEC.md example parses with no warnings", spec_example)
+
+    # compact lexicon for transport stays in sync with lexicon.json
+    lt = Path(__file__).parent / "lexicon.txt"
+    check("lexicon.txt exists and equals cl.lexicon_text()", lambda: lt.read_text() == cl.lexicon_text())
+    return ok
+
+
 def scenarios():
     """Every experiment scenario written in CL must parse with no error and no warning."""
     ok = True
@@ -153,6 +257,9 @@ def main():
 
     print("\nregressions (R1-R3):")
     ok &= regressions()
+
+    print("\nv0.2:")
+    ok &= v02()
 
     print("\nexperiment scenarios:")
     ok &= scenarios()
