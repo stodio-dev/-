@@ -1,5 +1,7 @@
 # ניסוי הבנה: פרוזה מול CL
 
+> **סגור (2026-11-02).** הניסוי הורץ על CL v0.1. קישורי הקריאה מוצמדים ל-commit `1b3cfbd` כדי שהרצה חוזרת תקרא בדיוק את אותם קבצים גם אחרי שינויי השפה. קובצי התשובות עדיין נכתבים ל-`main`.
+
 **שאלה:** האם מודל שקורא את אותו מידע ב-CL טועה פחות (או יותר) ממודל שקורא אותו בפרוזה? (סיכון R5 ב-`CHAT_HISTORY.md`)
 
 ## מה בתיקייה
@@ -19,7 +21,7 @@
 ### פרומפט למסלול NL
 ```
 You are a participant in a reading-comprehension experiment.
-1. Read ONLY this file: https://raw.githubusercontent.com/stodio-dev/-/main/experiment/track-nl.md
+1. Read ONLY this file: https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/track-nl.md
 2. Do not open any other file or page in the repository, do not search the web, and do not use any prior knowledge of this project.
 3. Answer every question (s01.q1 through s08.q4) with exactly one letter A-E, based only on the documents in that file. Choose E only if the documents truly do not contain the answer.
 4. Create the file experiment/results/<model>__nl__run<N>.md in the repository stodio-dev/- with exactly these lines:
@@ -36,9 +38,9 @@ s01.q2: <letter>
 ```
 You are a participant in a reading-comprehension experiment.
 1. Read ONLY these three files:
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/track-cl.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/SPEC.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/lexicon.json
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/track-cl.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/SPEC.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/lexicon.json
    The documents in track-cl.md are written in CL, a compact language defined by SPEC.md and lexicon.json.
 2. Do not open any other file or page in the repository, do not search the web, and do not use any prior knowledge of this project.
 3. Answer every question (s01.q1 through s08.q4) with exactly one letter A-E, based only on the documents in track-cl.md. Choose E only if the documents truly do not contain the answer.

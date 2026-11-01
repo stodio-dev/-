@@ -1,4 +1,6 @@
 __pycache__/
-# The experiment answer key must never be committed (the repo is public).
+node_modules/
+
+# The experiment answer keys must never be committed (the repo is public).
 answer-key*.json
 *.key.json

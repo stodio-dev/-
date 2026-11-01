@@ -1,0 +1,9 @@
+{
+  "name": "cl-tools",
+  "private": true,
+  "type": "module",
+  "description": "Real token counting for CL (bundled BPE vocabularies, no network needed at run time)",
+  "dependencies": {
+    "gpt-tokenizer": "4.1.0"
+  }
+}

@@ -1,5 +1,7 @@
 # ניסוי v2: סט צפוף ומבחן שרשרת
 
+> **סגור (2026-11-02).** הניסוי הורץ על CL v0.1 (grok-4.5, 3 הרצות בכל מסלול). קישורי הקריאה של הקבצים הקבועים מוצמדים ל-commit `1b3cfbd`; הודעות הביניים של השרשרת נקראות מ-`main` כי הן נכתבות בזמן ההרצה.
+
 **למה:** בניסוי הראשון (`experiment/`) כל המודלים הגיעו לתקרה (כמעט 100%), ולכן הוא לא יכול להבדיל בין פרוזה ל-CL.
 כאן המסמכים ארוכים וצפופים (כ-18 הצהרות בתרחיש, ישויות דומות, מקורות חופפים, מספרים קרובים),
 והשאלות דורשות שליפה, ספירה והשוואה. בנוסף יש מבחן שרשרת: כמה מידע שורד כשהוא עובר דרך שלוש הודעות.
@@ -27,7 +29,7 @@
 You are a participant in a reading-comprehension experiment.
 
 1. Read ONLY these files:
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/track-nl.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/v2/track-nl.md
 
 2. Do not open any other file or page in the repository, do not search the web, and do not use any prior knowledge of this project.
 
@@ -48,9 +50,9 @@ d01.q1: <letter>
 You are a participant in a reading-comprehension experiment.
 
 1. Read ONLY these files:
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/track-cl.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/SPEC.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/lexicon.json
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/v2/track-cl.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/SPEC.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/lexicon.json
 The documents in track-cl.md are written in CL, a compact language defined by SPEC.md and lexicon.json.
 
 2. Do not open any other file or page in the repository, do not search the web, and do not use any prior knowledge of this project.
@@ -81,7 +83,7 @@ d01.q1: <letter>
 You are hop 1 in a 3-step relay experiment (relay-nl).
 
 1. Read ONLY these files:
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/docs-nl.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/v2/docs-nl.md
 
 2. Do not open any other file or page, do not search the web, and do not use prior knowledge of this project.
 3. Write a handoff message in plain English for the next AI in a relay. That AI will NOT see the original documents and will later have to answer detailed questions about them; you will not see the questions. Preserve as much accurate, specific information as possible: who said what, how certain they were, when, numbers, scope, what is unknown. Do not add anything that is not in your source.
@@ -124,7 +126,7 @@ You are the final participant in a 3-step relay experiment (relay-nl).
 
 1. Read ONLY these files:
    https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/relay/<MODEL>__relay-nl__run<N>__hop2.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/questions.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/v2/questions.md
 
 2. Do not open any other file or page, do not search the web, and do not use prior knowledge of this project. The first file is a handoff message that passed through two earlier AIs; it is your only source of facts.
 3. Answer every question (d01.q1 through d04.q9) with exactly one letter A-E, based only on the handoff message. Choose E only if the message truly does not contain the answer.
@@ -143,9 +145,9 @@ d01.q1: <letter>
 You are hop 1 in a 3-step relay experiment (relay-cl).
 
 1. Read ONLY these files:
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/docs-cl.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/SPEC.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/lexicon.json
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/v2/docs-cl.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/SPEC.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/lexicon.json
 
 2. Do not open any other file or page, do not search the web, and do not use prior knowledge of this project.
 3. Write a handoff message in CL only (no prose), following SPEC.md and lexicon.json for the next AI in a relay. That AI will NOT see the original documents and will later have to answer detailed questions about them; you will not see the questions. Preserve as much accurate, specific information as possible: who said what, how certain they were, when, numbers, scope, what is unknown. Do not add anything that is not in your source.
@@ -167,8 +169,8 @@ You are hop 2 in a 3-step relay experiment (relay-cl).
 
 1. Read ONLY these files:
    https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/relay/<MODEL>__relay-cl__run<N>__hop1.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/SPEC.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/lexicon.json
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/SPEC.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/lexicon.json
 
 2. Do not open any other file or page, do not search the web, and do not use prior knowledge of this project.
 3. Write a handoff message in CL only (no prose), following SPEC.md and lexicon.json for the next AI in a relay. That AI will NOT see the original documents and will later have to answer detailed questions about them; you will not see the questions. Preserve as much accurate, specific information as possible: who said what, how certain they were, when, numbers, scope, what is unknown. Do not add anything that is not in your source.
@@ -190,9 +192,9 @@ You are the final participant in a 3-step relay experiment (relay-cl).
 
 1. Read ONLY these files:
    https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/relay/<MODEL>__relay-cl__run<N>__hop2.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/SPEC.md
-   https://raw.githubusercontent.com/stodio-dev/-/main/lexicon.json
-   https://raw.githubusercontent.com/stodio-dev/-/main/experiment/v2/questions.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/SPEC.md
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/lexicon.json
+   https://raw.githubusercontent.com/stodio-dev/-/1b3cfbd9f019aadd7f26f2d0087e6c4139c60bdc/experiment/v2/questions.md
 
 2. Do not open any other file or page, do not search the web, and do not use prior knowledge of this project. The first file is a handoff message that passed through two earlier AIs; it is your only source of facts.
 3. Answer every question (d01.q1 through d04.q9) with exactly one letter A-E, based only on the handoff message. Choose E only if the message truly does not contain the answer.
